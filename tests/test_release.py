@@ -71,7 +71,9 @@ class Release(unittest.TestCase):
             self.assertEqual(inherited["ZCODE_SESSION_DB"], inherited["ZCODE_SESSION_DB_PATH"])
 
     def test_manifest_keeps_resume_mcp_and_home_contract(self):
-        client = tomllib.loads((ROOT / "extension.toml").read_text())["client"]
+        manifest = tomllib.loads((ROOT / "extension.toml").read_text())
+        self.assertEqual(manifest["extension"]["node"], ">=0.4.2")
+        client = manifest["client"]
         self.assertEqual(client["protocol"], "zcode-stream")
         self.assertEqual(client["home_env"], "HOME")
         self.assertEqual(client["install"]["repo"], "pointman-ai/pointman-zcode")

@@ -2,6 +2,7 @@
 id = "zcode"
 name = "Z.ai ZCode"
 version = "0.1.0"
+node = ">=0.4.2"
 publisher = "aurelio"
 summary = "Z.ai's coding agent, built from its public source."
 

@@ -1,6 +1,8 @@
 # Z.ai ZCode for Pointman
 
-Source-built ZCode CLI extension. The manifest uses `zcode-stream`, one headless
+Source-built ZCode CLI extension. Requires Pointman node **0.4.2 or newer**
+for its stream protocol, run environment, platform assets and MCP settings.
+The manifest uses `zcode-stream`, one headless
 process per wake, explicit session resume, and a separate home for each agent.
 This repository has not yet published a release. Real-account runs are untested.
 
