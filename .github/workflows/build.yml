@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           export HOME="$(mktemp -d)"
-          export ZCODE_STORAGE_DIR="$HOME/.zcode/cli"
+          export ZCODE_STORAGE_DIR="$HOME/.zcode"
           upstream/apps/zcode-cli/packages/cli/dist/zcode-${{ matrix.target }} --version
           upstream/apps/zcode-cli/packages/cli/dist/zcode-${{ matrix.target }} --help
       - name: Package executable and licenses

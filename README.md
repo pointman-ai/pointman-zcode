@@ -50,9 +50,8 @@ node must provision a compatible glibc loader/library closure and launch the
 SEA through it, or package a Nix derivation that patches the ELF interpreter and
 RPATH while retaining its glibc dependencies. A documented requirement to enable
 nix-ld manually would not satisfy that acceptance criterion. This repository
-implements neither node installation nor Nix packaging, and pristine NixOS
-execution remains blocked until that work is implemented and tested. Do not
-advertise this asset as static or as a working NixOS build before that check.
+includes a source-reviewed FHS wrapper candidate below; node provisioning and
+pristine NixOS execution remain unverified. Do not advertise this asset as static or as a working NixOS build before that check.
 
 ## Run contract
 
@@ -74,26 +73,85 @@ MCP configuration merges into `.zcode/cli/config.json` at `mcp.servers`, with
 in `.zcode/AGENTS.md`. Both paths are relative to the isolated `HOME`.
 This requires Pointman's dotted MCP keys and settings merge support.
 
-### Required isolation glue in the node
+### Explicit run environment
 
-Setting `HOME` alone does not isolate ZCode. Its runtime sanitizer preserves
-state override variables, and prompt runs load the first ancestor `.env` before
-creating the app (`override:false`). The node must control these paths before
-starting the CLI, rather than merely removing inherited keys that `.env` can
-restore:
+`client.run.env` pins HOME, USERPROFILE and ZCODE_DATA_BASE_DIR to `{home}`.
+The source layouts are pinned explicitly as well:
 
-- Set `HOME`, `USERPROFILE`, and `ZCODE_DATA_BASE_DIR` to the agent home.
-- Set `ZCODE_STORAGE_DIR` to `<home>/.zcode/cli` and
-  `ZCODE_SESSION_DB_PATH` to `<home>/.zcode/cli/db/db.sqlite`.
-- Set `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` to
-  `<home>/.zcode/v2/provider_config.json`; set `ZCODE_LOG_DIR` inside the home.
-- Test with hostile inherited state overrides and ancestor `.env` files. No
-  unrelated personal account/configuration may be read. These tests belong to
-  the node's command/environment owner, not this manifest.
+| Environment key | Value |
+| --- | --- |
+| ZCODE_STORAGE_DIR | `{home}/.zcode` |
+| ZCODE_SESSION_DB_PATH | `{home}/.zcode/cli/db/db.sqlite` |
+| ZCODE_SESSION_DB | `{home}/.zcode/cli/db/db.sqlite` |
+| ZCODE_PERSONAL_PROVIDER_CONFIG_FILE | `{home}/.zcode/v2/provider_config.json` |
+| ZCODE_LOG_DIR | `{home}/.zcode/cli/log` |
 
-Those overrides are documented in upstream's CLI config and automation guides.
-The exact source pin's handling of all other config overrides still needs a
-runtime audit; no complete isolation claim is made from documentation alone.
+Both session database names are accepted by `env-config.adapter.ts`; setting
+only one lets a hostile inherited alias win according to environment iteration
+order. Storage and logger defaults were verified in contracts/src/config/index.ts
+and adapters/src/logging/index.ts. Storage is `.zcode`, not `.zcode/cli`.
+
+The two built-in provider override keys are set to empty strings. The CLI's
+`prepareCliProviderRuntimeEnv` treats blank overrides as absent and materializes
+its embedded provider config under the isolated data base directory. Setting
+only the personal path is supported by this CLI preparation step; its later
+provider runtime receives the completed pair. Do not point the built-in override
+at an invented empty file. The BFS, ripgrep and ugrep override keys are also
+blanked so the SEA verifies and extracts those binaries into its isolated cache.
+
+These explicit settings must overwrite inherited environment values before
+launch. Prompt runs load the first ancestor `.env` with `override:false`, so
+removing inherited keys alone is insufficient: that file could restore them.
+The offline contract checks exact source layouts and placeholder expansion for
+two agent homes against hostile inherited values. Actual node integration still
+needs tests with ancestor `.env`, two agents, provider setup and session resume.
+
+### Smallest concrete NixOS launcher candidate
+
+`nix/sea-wrapper.nix` wraps an already verified SEA in Nixpkgs' existing free
+Steam FHS runtime. It supplies no Steam client. This is smaller implementation
+work than building a bespoke loader closure and leaves the binary named
+`linux-x64`. The runtime footprint is broader than a custom dependency closure.
+
+The wrapper uses `(pkgs.steam.override { privateTmp = false; }).run-free`, then
+executes `bin/steam-run <SEA> "$@"`. Keeping the host temporary directory visible
+preserves node/MCP sockets. Nix interpolation copies the verified SEA into the
+store; the caller passes its own pinned package set and keeps the output link
+as a garbage collection root. For example, with real paths substituted:
+
+```sh
+nix-build --expr 'let pkgs = import /absolute/pinned/nixpkgs {}; in
+  import ./nix/sea-wrapper.nix {
+    inherit pkgs;
+    sea = /absolute/verified/zcode-linux-x64;
+  }' --out-link /node/state/runtimes/zcode-fhs
+/node/state/runtimes/zcode-fhs/bin/zcode --version
+```
+
+The node would provision this output on first install and launch its `bin/zcode`.
+No system nix-ld setting or user-installed Node/pnpm is needed. Nix itself is
+part of the NixOS environment. This is a source-reviewed candidate, **not a
+verified working install**: this machine has no Nix and no Linux SEA to test.
+It needs permitted unprivileged namespaces and a runtime smoke test that covers
+SEA self re-exec, extracted search tools, native plugin libraries, working
+folder, isolated HOME, and the Pointman MCP connection.
+
+An interpreter patch on the SEA alone is insufficient evidence: the CLI also
+extracts native search tools at runtime, and native libraries/plugins may have
+separate loader requirements. An FHS environment applies to that whole process
+tree. This candidate does not enable optional browser or desktop CUA features.
+
+Source details:
+[storage defaults](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/contracts/src/config/index.ts),
+[database environment aliases](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/adapters/src/config/env-config.adapter.ts),
+[logger directory](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/adapters/src/logging/index.ts),
+[provider preparation](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/cli/src/provider-runtime-env.ts),
+[SEA tool extraction](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/cli/src/sea-runtime-tools.ts).
+
+Nix sources:
+[buildFHSEnv manual](https://nixos.org/manual/nixpkgs/stable/#sec-fhs-environments),
+[Steam free runtime definition](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/st/steam/package.nix),
+[free runtime package alias](https://github.com/NixOS/nixpkgs/blob/master/pkgs/top-level/all-packages.nix).
 
 ## Decoder contract
 
@@ -131,7 +189,8 @@ parent's actual clientspec.rs without editing shared files.
 Not checked here: full pnpm/SEA build (shell GitHub DNS unavailable), GitHub CI,
 published release install, NixOS dynamic loader compatibility, authenticated
 first wake/resume, MCP tool execution, and real quota failures. The task remains
-incomplete until integration and real-account acceptance are performed.
+incomplete until integration and real-account acceptance are performed. Nix is
+not installed on this development Mac, so the wrapper has not been evaluated.
 
 Sources read on 2026-10-28:
 

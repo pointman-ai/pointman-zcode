@@ -22,6 +22,25 @@ how = "zcode login"
 args = ["--prompt", "{prompt}", "--output-format", "stream-json", "--no-color", "{permissions}", "{session}"]
 resume = ["--resume", "{value}"]
 
+# Explicit values beat inherited state overrides and ancestor .env loading.
+[client.run.env]
+HOME = "{home}"
+USERPROFILE = "{home}"
+ZCODE_DATA_BASE_DIR = "{home}"
+ZCODE_STORAGE_DIR = "{home}/.zcode"
+ZCODE_SESSION_DB_PATH = "{home}/.zcode/cli/db/db.sqlite"
+# Upstream accepts both names; pin the alias too, regardless of env iteration order.
+ZCODE_SESSION_DB = "{home}/.zcode/cli/db/db.sqlite"
+ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = "{home}/.zcode/v2/provider_config.json"
+ZCODE_LOG_DIR = "{home}/.zcode/cli/log"
+# Empty overrides make the CLI materialize its bundled config under DATA_BASE_DIR.
+ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = ""
+ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE = ""
+# Force SEA tools into its verified cache below ZCODE_STORAGE_DIR.
+ZCODE_BFS_BINARY = ""
+ZCODE_RG_BINARY = ""
+ZCODE_UGREP_BINARY = ""
+
 [client.run.permissions]
 default = ["--mode", "build"]
 plan = ["--mode", "plan"]

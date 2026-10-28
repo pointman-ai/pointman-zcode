@@ -47,6 +47,29 @@ class Release(unittest.TestCase):
                     pin.source_pin(path)
         self.assertEqual(pin.source_pin(ROOT / "upstream.json"), "3c5b227649371507ddc4eb46ac5133afe6db1cab")
 
+    def test_environment_isolates_paths_and_covers_database_alias(self):
+        env = tomllib.loads((ROOT / "extension.toml").read_text())["client"]["run"]["env"]
+        self.assertEqual(env, {
+            "HOME": "{home}", "USERPROFILE": "{home}", "ZCODE_DATA_BASE_DIR": "{home}",
+            "ZCODE_STORAGE_DIR": "{home}/.zcode",
+            "ZCODE_SESSION_DB_PATH": "{home}/.zcode/cli/db/db.sqlite",
+            "ZCODE_SESSION_DB": "{home}/.zcode/cli/db/db.sqlite",
+            "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE": "{home}/.zcode/v2/provider_config.json",
+            "ZCODE_LOG_DIR": "{home}/.zcode/cli/log",
+            "ZCODE_BUILTIN_PROVIDER_CONFIG_FILE": "",
+            "ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE": "",
+            "ZCODE_BFS_BINARY": "", "ZCODE_RG_BINARY": "", "ZCODE_UGREP_BINARY": "",
+        })
+        # Contract fixture: apply the node's documented replacement/overwrite semantics
+        # to two agents in the presence of every hostile inherited key. The parent
+        # owns the integration test of its actual command environment construction.
+        for home in ["/state/agents/one/home", "/state/agents/two/home with spaces"]:
+            inherited = {key: "/personal/hostile" for key in env}
+            inherited.update({key: value.replace("{home}", home) for key, value in env.items()})
+            for key, value in inherited.items():
+                self.assertTrue(value == "" or value == home or value.startswith(home + "/"), key)
+            self.assertEqual(inherited["ZCODE_SESSION_DB"], inherited["ZCODE_SESSION_DB_PATH"])
+
     def test_manifest_keeps_resume_mcp_and_home_contract(self):
         client = tomllib.loads((ROOT / "extension.toml").read_text())["client"]
         self.assertEqual(client["protocol"], "zcode-stream")
