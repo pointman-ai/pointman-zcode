@@ -23,13 +23,13 @@ pin = load("pin", "source-pin.py")
 
 class Release(unittest.TestCase):
     def test_archives_satisfy_node_extractor_contract(self):
-        for target, triple in [("darwin-arm64", "aarch64-apple-darwin"), ("linux-x64", "x86_64-unknown-linux-musl")]:
+        for target in ["darwin-arm64", "linux-x64"]:
             with self.subTest(target=target), tempfile.TemporaryDirectory() as temp:
                 directory = Path(temp)
                 source = directory / "sea"
                 source.write_bytes(b"fake executable\x00\xff")
                 archive = pack.package(source, directory / "out", target)
-                self.assertEqual(archive.name, f"zcode-{triple}.tar.gz")
+                self.assertEqual(archive.name, f"zcode-{target}.tar.gz")
                 with tarfile.open(archive, "r:gz") as tar:
                     member, = tar.getmembers()
                     self.assertEqual(member.name, archive.name.removesuffix(".tar.gz"))
@@ -52,6 +52,7 @@ class Release(unittest.TestCase):
         self.assertEqual(client["protocol"], "zcode-stream")
         self.assertEqual(client["home_env"], "HOME")
         self.assertEqual(client["install"]["repo"], "pointman-ai/pointman-zcode")
+        self.assertEqual(client["install"]["asset"], "zcode-{platform}.tar.gz")
         self.assertEqual(client["run"]["resume"], ["--resume", "{value}"])
         self.assertEqual(client["mcp"]["settings"], {"features": {"mcp": True}})
         self.assertEqual(client["mcp"]["key"], "mcp.servers")

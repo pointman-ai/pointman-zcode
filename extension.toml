@@ -13,7 +13,7 @@ home_env = "HOME"
 [client.install]
 from = "release"
 repo = "pointman-ai/pointman-zcode"
-asset = "zcode-{triple}.tar.gz"
+asset = "zcode-{platform}.tar.gz"
 
 [client.sign_in]
 how = "zcode login"

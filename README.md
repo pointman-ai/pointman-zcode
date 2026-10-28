@@ -39,11 +39,19 @@ GitHub release. Publish it only after inspecting both builds. Pointman's install
 uses GitHub's asset digest; sidecar checksums are supplementary.
 
 The archives contain one executable with the archive's basename, matching
-Pointman's `fetch::unpack_file` contract. On Linux the installer's current triple
-is `x86_64-unknown-linux-musl`; that archive name is only an installer ABI name.
+Pointman's `fetch::unpack_file` contract. Assets are named
+`zcode-darwin-arm64.tar.gz` and `zcode-linux-x64.tar.gz`. The manifest requires
+node support for `{platform}` in release assets; the existing `{triple}` path
+always selects musl on Linux and is unsuitable for these upstream binaries.
+
 **The embedded official Node binary uses glibc, not musl.** NixOS execution needs
-its dynamic loader compatibility environment (for example nix-ld) or node-side
-wrapping. Installation on a pristine NixOS machine has not been proven. Do not
+an actual loader strategy. To meet installation without preinstalled tools, the
+node must provision a compatible glibc loader/library closure and launch the
+SEA through it, or package a Nix derivation that patches the ELF interpreter and
+RPATH while retaining its glibc dependencies. A documented requirement to enable
+nix-ld manually would not satisfy that acceptance criterion. This repository
+implements neither node installation nor Nix packaging, and pristine NixOS
+execution remains blocked until that work is implemented and tested. Do not
 advertise this asset as static or as a working NixOS build before that check.
 
 ## Run contract

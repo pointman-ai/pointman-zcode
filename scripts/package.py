@@ -6,14 +6,15 @@ import io
 import tarfile
 from pathlib import Path
 
-# These archive names implement the current Pointman installer ABI. Linux's ABI
-# name says musl, but the enclosed official Node SEA is glibc; see README.
-TRIPLES = {"darwin-arm64": "aarch64-apple-darwin", "linux-x64": "x86_64-unknown-linux-musl"}
+# Use upstream platform names. The Linux SEA embeds glibc Node, not musl.
+TARGETS = ("darwin-arm64", "linux-x64")
 
 
 def package(source, output, target):
     source, output = Path(source), Path(output)
-    name = f"zcode-{TRIPLES[target]}"
+    if target not in TARGETS:
+        raise ValueError(f"unsupported target: {target}")
+    name = f"zcode-{target}"
     output.mkdir(parents=True, exist_ok=True)
     archive = output / f"{name}.tar.gz"
     data = source.read_bytes()
@@ -31,6 +32,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--target", choices=TRIPLES, required=True)
+    parser.add_argument("--target", choices=TARGETS, required=True)
     args = parser.parse_args()
     print(package(args.source, args.output, args.target))
