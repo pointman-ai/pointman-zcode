@@ -6,6 +6,28 @@ node = ">=0.4.2"
 publisher = "aurelio"
 summary = "Z.ai's coding agent, built from its public source."
 
+[permissions]
+secrets = ["zcode.key"]
+
+[[credentials]]
+id = "key"
+title = "Z.ai GLM Coding Plan key"
+help = "Get your GLM Coding Plan key at https://z.ai/manage-apikey/apikey-list. It is sealed in the vault and supplied to each agent's private provider file when it runs."
+item = "zcode.key"
+value = "[^\\s]+"
+placeholder = "GLM Coding Plan API key"
+
+[[commands]]
+kind = "zcode.add"
+title = "Add a GLM Coding Plan key"
+slash = "add"
+form = "key"
+summary = "Seal a Z.ai GLM Coding Plan key in the vault for this machine's agents"
+
+[commands.params]
+type = "object"
+additionalProperties = false
+
 [client]
 binaries = ["zcode"]
 protocol = "zcode-stream"
@@ -17,7 +39,28 @@ repo = "pointman-ai/pointman-zcode"
 asset = "zcode-{platform}.tar.gz"
 
 [client.sign_in]
-how = "zcode login"
+how = "/zcode add"
+
+# Pinned upstream's zai-api template; account:* providers forbid access overrides.
+[client.key]
+secret = "zcode.key"
+file = ".zcode/v2/pointman-provider.json"
+env_file = "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE"
+path = "/config/providerConfigRules/providerRules/0/config/access/apiKey"
+
+[client.key.settings]
+schemaVersion = 1
+
+[client.key.settings.config]
+defaultModelSelection = { providerId = "pointman-zai-coding-plan", modelId = "GLM-5.3" }
+modelConfigRules = { providerModelRules = [], manualProviderModelRules = [] }
+
+[[client.key.settings.config.providerConfigRules.providerRules]]
+providerId = "pointman-zai-coding-plan"
+templateId = "zai-api"
+providerName = "Z.ai Coding Plan"
+enabled = true
+config = { group = "standard-personal", access = { type = "zhipu-coding-plan-api-key", apiKey = "" }, api = { type = "anthropic-messages", baseUrl = "https://api.z.ai/api/anthropic" } }
 
 [client.run]
 args = ["--prompt", "{prompt}", "--output-format", "stream-json", "--no-color", "{permissions}", "{session}"]

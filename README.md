@@ -6,6 +6,59 @@ The manifest uses `zcode-stream`, one headless
 process per wake, explicit session resume, and a separate home for each agent.
 This repository has not yet published a release. Real-account runs are untested.
 
+## Set up a GLM Coding Plan key
+
+Run **`/zcode add` in Pointman once on the machine** and paste your Z.ai GLM
+Coding Plan key into its private form. Get the key from
+[Z.ai's API key page](https://z.ai/manage-apikey/apikey-list). The app seals it
+as `zcode.key` in the vault. The slash command opens a form; no extension
+process receives the pasted value.
+
+Before each agent run, the node reads that vault item and writes a private
+provider file in the agent's isolated home at `.zcode/v2/pointman-provider.json`.
+It merges `client.key.settings`, then inserts the key at the JSON Pointer
+`/config/providerConfigRules/providerRules/0/config/access/apiKey`.
+Only a present vault key overrides `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` to this
+managed file. With no vault key, the node removes the managed file and uses the
+ordinary isolated `.zcode/v2/provider_config.json` instead, preserving manual
+sign-in. The key is plaintext in the private runtime file; do not share or
+commit that file.
+
+The skeleton follows the immutable upstream pin's `zai-api` template:
+
+| Setting | Value |
+| --- | --- |
+| Personal instance ID | `pointman-zai-coding-plan` |
+| Template | `zai-api` |
+| Access type | `zhipu-coding-plan-api-key` |
+| API type | `anthropic-messages` |
+| Base URL | `https://api.z.ai/api/anthropic` |
+| Default model | `GLM-5.3` |
+
+The instance ID is ours; template, access type, endpoint and model are upstream's.
+It uses schema version 1, `config.providerConfigRules.providerRules` and
+`config.defaultModelSelection`, plus the two empty personal model-rule arrays.
+Do not use an `account:*` provider for a pasted key: upstream rejects personal
+access overrides on those providers. Do not substitute the standard pay-as-you-go
+endpoint or put the model endpoint in `ZCODE_BASE_URL`.
+
+Sources at the build pin:
+[provider templates](https://github.com/zai-org/ZCode/blob/3c5b227649371507ddc4eb46ac5133afe6db1cab/config/provider/zcode-builtin.json),
+[personal provider rules](https://github.com/zai-org/ZCode/blob/3c5b227649371507ddc4eb46ac5133afe6db1cab/packages/provider/src/config/rule-data-schema.ts),
+[provider data schema](https://github.com/zai-org/ZCode/blob/3c5b227649371507ddc4eb46ac5133afe6db1cab/packages/provider/src/config/provider-data-schema.ts),
+[file codec](https://github.com/zai-org/ZCode/blob/3c5b227649371507ddc4eb46ac5133afe6db1cab/packages/provider-node/src/provider-config-file-codec.ts).
+
+### Alternative: isolated manual login
+
+Without a vault key, run `zcode login` with the same isolated HOME and explicit
+environment paths as that agent's `client.run.env`. Each agent needs its own
+login; signing in under your usual shell HOME does not configure an agent.
+Manual login writes `.zcode/v2/provider_config.json`; the node keeps this file
+when removing a managed vault-key file. To use manual login again, remove the
+machine's `zcode.key` vault item before the next run. A configured vault key
+takes precedence. No real key or authenticated model call was used to develop
+or test this extension.
+
 ## Provenance and build
 
 `upstream.json` pins public [zai-org/ZCode commit
@@ -40,8 +93,15 @@ upstream license notices as artifacts. A `v*` tag additionally creates a **draft
 GitHub release. Publish it only after inspecting both builds. Pointman's installer
 uses GitHub's asset digest; sidecar checksums are supplementary.
 
-The archives contain one executable with the archive's basename, matching
-Pointman's `fetch::unpack_file` contract. Assets are named
+The archives contain one executable with the archive's basename, plus
+`licenses/zcode/LICENSE`, `licenses/zcode/NOTICE.md`, and
+`licenses/zcode/THIRD-PARTY-NOTICES.md`, copied byte-for-byte from the pinned
+checkout. They also contain this extension's `licenses/pointman-zcode/LICENSE`
+and `upstream.json`. Packaging fails if any upstream notice is missing or empty.
+Pointman's `fetch::unpack_file` selects the executable by basename and skips
+other files, so these notices need no extractor change. They remain inside the
+downloaded archive; the current extractor installs only the executable.
+Assets are named
 `zcode-darwin-arm64.tar.gz` and `zcode-linux-x64.tar.gz`. The manifest requires
 node support for `{platform}` in release assets; the existing `{triple}` path
 always selects musl on Linux and is unsuitable for these upstream binaries.
@@ -66,9 +126,8 @@ let ZCode allocate the session ID. There is no supported `--model` override here
 yolo modes. Yolo does not guarantee every tool's approval gate can be answered.
 Headless approval requests normally fail through ZCode's deny broker.
 
-Login is `zcode login`; no automated sign-in check is claimed. An operator must
-provision account state in the isolated home. This implementation does not sign
-in or call a paid model.
+The primary setup is `/zcode add`; isolated `zcode login` remains the alternative
+described above. No automated sign-in check or authenticated model call is claimed.
 
 MCP configuration merges into `.zcode/cli/config.json` at `mcp.servers`, with
 `features.mcp=true`, preserving other provider/runtime settings. Instructions go
@@ -87,6 +146,10 @@ The source layouts are pinned explicitly as well:
 | ZCODE_SESSION_DB | `{home}/.zcode/cli/db/db.sqlite` |
 | ZCODE_PERSONAL_PROVIDER_CONFIG_FILE | `{home}/.zcode/v2/provider_config.json` |
 | ZCODE_LOG_DIR | `{home}/.zcode/cli/log` |
+
+When a vault key is present, key delivery runs after this environment is set and
+overrides the personal provider path to `{home}/.zcode/v2/pointman-provider.json`.
+The other paths and the manual provider file remain isolated as above.
 
 Both session database names are accepted by `env-config.adapter.ts`; setting
 only one lets a hostile inherited alias win according to environment iteration
@@ -187,6 +250,14 @@ Run `python3 -m unittest discover -s tests -v`. Decoder unit tests live inside t
 Rust decoder file and use upstream schema-shaped examples (not real-account
 captures). The standalone test harness extracts Event and Outcome from the
 parent's actual clientspec.rs without editing shared files.
+
+The offline suite checks the vault form, key pointer through its provider-rule
+array, explicit Coding Plan transport, separate manual config path, notices
+inside both target archives, and failure on missing/empty notices. With the
+pinned upstream checkout and frozen dependencies installed, run
+`python3 scripts/check-provider.py --upstream upstream` to validate fake-key
+settings with upstream's actual decoder and compare the template, endpoint and
+model. Build CI runs this check; it makes no model calls.
 
 Not checked here: full pnpm/SEA build (shell GitHub DNS unavailable), GitHub CI,
 published release install, NixOS dynamic loader compatibility, authenticated
