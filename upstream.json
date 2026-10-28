@@ -1,0 +1,8 @@
+{
+  "repository": "zai-org/ZCode",
+  "commit": "3c5b227649371507ddc4eb46ac5133afe6db1cab",
+  "observed_short_commit": "3c5b227",
+  "node": "24.14.0",
+  "pnpm": "10.33.2",
+  "evidence": "https://github.com/zai-org/ZCode/commit/3c5b227.patch"
+}

@@ -1,0 +1,39 @@
+[extension]
+id = "zcode"
+name = "Z.ai ZCode"
+version = "0.1.0"
+publisher = "aurelio"
+summary = "Z.ai's coding agent, built from its public source."
+
+[client]
+binaries = ["zcode"]
+protocol = "zcode-stream"
+home_env = "HOME"
+
+[client.install]
+from = "release"
+repo = "pointman-ai/pointman-zcode"
+asset = "zcode-{triple}.tar.gz"
+
+[client.sign_in]
+how = "zcode login"
+
+[client.run]
+args = ["--prompt", "{prompt}", "--output-format", "stream-json", "--no-color", "{permissions}", "{session}"]
+resume = ["--resume", "{value}"]
+
+[client.run.permissions]
+default = ["--mode", "build"]
+plan = ["--mode", "plan"]
+auto = ["--mode", "yolo"]
+acceptEdits = ["--mode", "edit"]
+
+[client.mcp]
+via = "config-file"
+file = ".zcode/cli/config.json"
+key = "mcp.servers"
+settings = { features = { mcp = true } }
+
+[client.instructions]
+via = "file"
+file = ".zcode/AGENTS.md"
