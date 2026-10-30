@@ -46,6 +46,8 @@ jobs:
         env:
           HUSKY: '0'
         run: pnpm install --frozen-lockfile
+      - name: Check fake-key provider settings against pinned upstream
+        run: python3 scripts/check-provider.py --upstream upstream
       # These are the first two commands from @zcode/cli's build:sea script.
       # Build every CLI workspace package: SEA also embeds official plugins/TUI.
       - name: Build workspace dependencies and CLI
@@ -60,13 +62,13 @@ jobs:
         shell: bash
         run: |
           export HOME="$(mktemp -d)"
-          export ZCODE_STORAGE_DIR="$HOME/.zcode/cli"
+          export ZCODE_STORAGE_DIR="$HOME/.zcode"
           upstream/apps/zcode-cli/packages/cli/dist/zcode-${{ matrix.target }} --version
           upstream/apps/zcode-cli/packages/cli/dist/zcode-${{ matrix.target }} --help
       - name: Package executable and licenses
         shell: bash
         run: |
-          python3 scripts/package.py --target '${{ matrix.target }}' --source 'upstream/apps/zcode-cli/packages/cli/dist/zcode-${{ matrix.target }}' --output release
+          python3 scripts/package.py --target '${{ matrix.target }}' --source 'upstream/apps/zcode-cli/packages/cli/dist/zcode-${{ matrix.target }}' --output release --upstream upstream
           cp upstream.json release/upstream-${{ matrix.target }}.json
           cp upstream/LICENSE release/LICENSE-${{ matrix.target }}
           cp upstream/NOTICE.md release/NOTICE-${{ matrix.target }}.md

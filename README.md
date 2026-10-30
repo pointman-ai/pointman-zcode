@@ -1,8 +1,63 @@
 # Z.ai ZCode for Pointman
 
-Source-built ZCode CLI extension. The manifest uses `zcode-stream`, one headless
+Source-built ZCode CLI extension. Requires Pointman node **0.4.2 or newer**
+for its stream protocol, run environment, platform assets and MCP settings.
+The manifest uses `zcode-stream`, one headless
 process per wake, explicit session resume, and a separate home for each agent.
 This repository has not yet published a release. Real-account runs are untested.
+
+## Set up a GLM Coding Plan key
+
+Run **`/zcode add` in Pointman once on the machine** and paste your Z.ai GLM
+Coding Plan key into its private form. Get the key from
+[Z.ai's API key page](https://z.ai/manage-apikey/apikey-list). The app seals it
+as `zcode.key` in the vault. The slash command opens a form; no extension
+process receives the pasted value.
+
+Before each agent run, the node reads that vault item and writes a private
+provider file in the agent's isolated home at `.zcode/v2/pointman-provider.json`.
+It merges `client.key.settings`, then inserts the key at the JSON Pointer
+`/config/providerConfigRules/providerRules/0/config/access/apiKey`.
+Only a present vault key overrides `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` to this
+managed file. With no vault key, the node removes the managed file and uses the
+ordinary isolated `.zcode/v2/provider_config.json` instead, preserving manual
+sign-in. The key is plaintext in the private runtime file; do not share or
+commit that file.
+
+The skeleton follows the immutable upstream pin's `zai-api` template:
+
+| Setting | Value |
+| --- | --- |
+| Personal instance ID | `pointman-zai-coding-plan` |
+| Template | `zai-api` |
+| Access type | `zhipu-coding-plan-api-key` |
+| API type | `anthropic-messages` |
+| Base URL | `https://api.z.ai/api/anthropic` |
+| Default model | `GLM-5.3` |
+
+The instance ID is ours; template, access type, endpoint and model are upstream's.
+It uses schema version 1, `config.providerConfigRules.providerRules` and
+`config.defaultModelSelection`, plus the two empty personal model-rule arrays.
+Do not use an `account:*` provider for a pasted key: upstream rejects personal
+access overrides on those providers. Do not substitute the standard pay-as-you-go
+endpoint or put the model endpoint in `ZCODE_BASE_URL`.
+
+Sources at the build pin:
+[provider templates](https://github.com/zai-org/ZCode/blob/3c5b227649371507ddc4eb46ac5133afe6db1cab/config/provider/zcode-builtin.json),
+[personal provider rules](https://github.com/zai-org/ZCode/blob/3c5b227649371507ddc4eb46ac5133afe6db1cab/packages/provider/src/config/rule-data-schema.ts),
+[provider data schema](https://github.com/zai-org/ZCode/blob/3c5b227649371507ddc4eb46ac5133afe6db1cab/packages/provider/src/config/provider-data-schema.ts),
+[file codec](https://github.com/zai-org/ZCode/blob/3c5b227649371507ddc4eb46ac5133afe6db1cab/packages/provider-node/src/provider-config-file-codec.ts).
+
+### Alternative: isolated manual login
+
+Without a vault key, run `zcode login` with the same isolated HOME and explicit
+environment paths as that agent's `client.run.env`. Each agent needs its own
+login; signing in under your usual shell HOME does not configure an agent.
+Manual login writes `.zcode/v2/provider_config.json`; the node keeps this file
+when removing a managed vault-key file. To use manual login again, remove the
+machine's `zcode.key` vault item before the next run. A configured vault key
+takes precedence. No real key or authenticated model call was used to develop
+or test this extension.
 
 ## Provenance and build
 
@@ -38,13 +93,27 @@ upstream license notices as artifacts. A `v*` tag additionally creates a **draft
 GitHub release. Publish it only after inspecting both builds. Pointman's installer
 uses GitHub's asset digest; sidecar checksums are supplementary.
 
-The archives contain one executable with the archive's basename, matching
-Pointman's `fetch::unpack_file` contract. On Linux the installer's current triple
-is `x86_64-unknown-linux-musl`; that archive name is only an installer ABI name.
+The archives contain one executable with the archive's basename, plus
+`licenses/zcode/LICENSE`, `licenses/zcode/NOTICE.md`, and
+`licenses/zcode/THIRD-PARTY-NOTICES.md`, copied byte-for-byte from the pinned
+checkout. They also contain this extension's `licenses/pointman-zcode/LICENSE`
+and `upstream.json`. Packaging fails if any upstream notice is missing or empty.
+Pointman's `fetch::unpack_file` selects the executable by basename and skips
+other files, so these notices need no extractor change. They remain inside the
+downloaded archive; the current extractor installs only the executable.
+Assets are named
+`zcode-darwin-arm64.tar.gz` and `zcode-linux-x64.tar.gz`. The manifest requires
+node support for `{platform}` in release assets; the existing `{triple}` path
+always selects musl on Linux and is unsuitable for these upstream binaries.
+
 **The embedded official Node binary uses glibc, not musl.** NixOS execution needs
-its dynamic loader compatibility environment (for example nix-ld) or node-side
-wrapping. Installation on a pristine NixOS machine has not been proven. Do not
-advertise this asset as static or as a working NixOS build before that check.
+an actual loader strategy. To meet installation without preinstalled tools, the
+node must provision a compatible glibc loader/library closure and launch the
+SEA through it, or package a Nix derivation that patches the ELF interpreter and
+RPATH while retaining its glibc dependencies. A documented requirement to enable
+nix-ld manually would not satisfy that acceptance criterion. This repository
+includes a source-reviewed FHS wrapper candidate below; node provisioning and
+pristine NixOS execution remain unverified. Do not advertise this asset as static or as a working NixOS build before that check.
 
 ## Run contract
 
@@ -57,35 +126,97 @@ let ZCode allocate the session ID. There is no supported `--model` override here
 yolo modes. Yolo does not guarantee every tool's approval gate can be answered.
 Headless approval requests normally fail through ZCode's deny broker.
 
-Login is `zcode login`; no automated sign-in check is claimed. An operator must
-provision account state in the isolated home. This implementation does not sign
-in or call a paid model.
+The primary setup is `/zcode add`; isolated `zcode login` remains the alternative
+described above. No automated sign-in check or authenticated model call is claimed.
 
 MCP configuration merges into `.zcode/cli/config.json` at `mcp.servers`, with
 `features.mcp=true`, preserving other provider/runtime settings. Instructions go
 in `.zcode/AGENTS.md`. Both paths are relative to the isolated `HOME`.
 This requires Pointman's dotted MCP keys and settings merge support.
 
-### Required isolation glue in the node
+### Explicit run environment
 
-Setting `HOME` alone does not isolate ZCode. Its runtime sanitizer preserves
-state override variables, and prompt runs load the first ancestor `.env` before
-creating the app (`override:false`). The node must control these paths before
-starting the CLI, rather than merely removing inherited keys that `.env` can
-restore:
+`client.run.env` pins HOME, USERPROFILE and ZCODE_DATA_BASE_DIR to `{home}`.
+The source layouts are pinned explicitly as well:
 
-- Set `HOME`, `USERPROFILE`, and `ZCODE_DATA_BASE_DIR` to the agent home.
-- Set `ZCODE_STORAGE_DIR` to `<home>/.zcode/cli` and
-  `ZCODE_SESSION_DB_PATH` to `<home>/.zcode/cli/db/db.sqlite`.
-- Set `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` to
-  `<home>/.zcode/v2/provider_config.json`; set `ZCODE_LOG_DIR` inside the home.
-- Test with hostile inherited state overrides and ancestor `.env` files. No
-  unrelated personal account/configuration may be read. These tests belong to
-  the node's command/environment owner, not this manifest.
+| Environment key | Value |
+| --- | --- |
+| ZCODE_STORAGE_DIR | `{home}/.zcode` |
+| ZCODE_SESSION_DB_PATH | `{home}/.zcode/cli/db/db.sqlite` |
+| ZCODE_SESSION_DB | `{home}/.zcode/cli/db/db.sqlite` |
+| ZCODE_PERSONAL_PROVIDER_CONFIG_FILE | `{home}/.zcode/v2/provider_config.json` |
+| ZCODE_LOG_DIR | `{home}/.zcode/cli/log` |
 
-Those overrides are documented in upstream's CLI config and automation guides.
-The exact source pin's handling of all other config overrides still needs a
-runtime audit; no complete isolation claim is made from documentation alone.
+When a vault key is present, key delivery runs after this environment is set and
+overrides the personal provider path to `{home}/.zcode/v2/pointman-provider.json`.
+The other paths and the manual provider file remain isolated as above.
+
+Both session database names are accepted by `env-config.adapter.ts`; setting
+only one lets a hostile inherited alias win according to environment iteration
+order. Storage and logger defaults were verified in contracts/src/config/index.ts
+and adapters/src/logging/index.ts. Storage is `.zcode`, not `.zcode/cli`.
+
+The two built-in provider override keys are set to empty strings. The CLI's
+`prepareCliProviderRuntimeEnv` treats blank overrides as absent and materializes
+its embedded provider config under the isolated data base directory. Setting
+only the personal path is supported by this CLI preparation step; its later
+provider runtime receives the completed pair. Do not point the built-in override
+at an invented empty file. The BFS, ripgrep and ugrep override keys are also
+blanked so the SEA verifies and extracts those binaries into its isolated cache.
+
+These explicit settings must overwrite inherited environment values before
+launch. Prompt runs load the first ancestor `.env` with `override:false`, so
+removing inherited keys alone is insufficient: that file could restore them.
+The offline contract checks exact source layouts and placeholder expansion for
+two agent homes against hostile inherited values. Actual node integration still
+needs tests with ancestor `.env`, two agents, provider setup and session resume.
+
+### Smallest concrete NixOS launcher candidate
+
+`nix/sea-wrapper.nix` wraps an already verified SEA in Nixpkgs' existing free
+Steam FHS runtime. It supplies no Steam client. This is smaller implementation
+work than building a bespoke loader closure and leaves the binary named
+`linux-x64`. The runtime footprint is broader than a custom dependency closure.
+
+The wrapper uses `(pkgs.steam.override { privateTmp = false; }).run-free`, then
+executes `bin/steam-run <SEA> "$@"`. Keeping the host temporary directory visible
+preserves node/MCP sockets. Nix interpolation copies the verified SEA into the
+store; the caller passes its own pinned package set and keeps the output link
+as a garbage collection root. For example, with real paths substituted:
+
+```sh
+nix-build --expr 'let pkgs = import /absolute/pinned/nixpkgs {}; in
+  import ./nix/sea-wrapper.nix {
+    inherit pkgs;
+    sea = /absolute/verified/zcode-linux-x64;
+  }' --out-link /node/state/runtimes/zcode-fhs
+/node/state/runtimes/zcode-fhs/bin/zcode --version
+```
+
+The node would provision this output on first install and launch its `bin/zcode`.
+No system nix-ld setting or user-installed Node/pnpm is needed. Nix itself is
+part of the NixOS environment. This is a source-reviewed candidate, **not a
+verified working install**: this machine has no Nix and no Linux SEA to test.
+It needs permitted unprivileged namespaces and a runtime smoke test that covers
+SEA self re-exec, extracted search tools, native plugin libraries, working
+folder, isolated HOME, and the Pointman MCP connection.
+
+An interpreter patch on the SEA alone is insufficient evidence: the CLI also
+extracts native search tools at runtime, and native libraries/plugins may have
+separate loader requirements. An FHS environment applies to that whole process
+tree. This candidate does not enable optional browser or desktop CUA features.
+
+Source details:
+[storage defaults](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/contracts/src/config/index.ts),
+[database environment aliases](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/adapters/src/config/env-config.adapter.ts),
+[logger directory](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/adapters/src/logging/index.ts),
+[provider preparation](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/cli/src/provider-runtime-env.ts),
+[SEA tool extraction](https://github.com/zai-org/ZCode/blob/main/apps/zcode-cli/packages/cli/src/sea-runtime-tools.ts).
+
+Nix sources:
+[buildFHSEnv manual](https://nixos.org/manual/nixpkgs/stable/#sec-fhs-environments),
+[Steam free runtime definition](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/st/steam/package.nix),
+[free runtime package alias](https://github.com/NixOS/nixpkgs/blob/master/pkgs/top-level/all-packages.nix).
 
 ## Decoder contract
 
@@ -120,10 +251,19 @@ Rust decoder file and use upstream schema-shaped examples (not real-account
 captures). The standalone test harness extracts Event and Outcome from the
 parent's actual clientspec.rs without editing shared files.
 
+The offline suite checks the vault form, key pointer through its provider-rule
+array, explicit Coding Plan transport, separate manual config path, notices
+inside both target archives, and failure on missing/empty notices. With the
+pinned upstream checkout and frozen dependencies installed, run
+`python3 scripts/check-provider.py --upstream upstream` to validate fake-key
+settings with upstream's actual decoder and compare the template, endpoint and
+model. Build CI runs this check; it makes no model calls.
+
 Not checked here: full pnpm/SEA build (shell GitHub DNS unavailable), GitHub CI,
 published release install, NixOS dynamic loader compatibility, authenticated
 first wake/resume, MCP tool execution, and real quota failures. The task remains
-incomplete until integration and real-account acceptance are performed.
+incomplete until integration and real-account acceptance are performed. Nix is
+not installed on this development Mac, so the wrapper has not been evaluated.
 
 Sources read on 2026-10-28:
 

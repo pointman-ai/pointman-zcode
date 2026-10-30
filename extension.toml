@@ -2,8 +2,31 @@
 id = "zcode"
 name = "Z.ai ZCode"
 version = "0.1.0"
+node = ">=0.4.2"
 publisher = "aurelio"
 summary = "Z.ai's coding agent, built from its public source."
+
+[permissions]
+secrets = ["zcode.key"]
+
+[[credentials]]
+id = "key"
+title = "Z.ai GLM Coding Plan key"
+help = "Get your GLM Coding Plan key at https://z.ai/manage-apikey/apikey-list. It is sealed in the vault and supplied to each agent's private provider file when it runs."
+item = "zcode.key"
+value = "[^\\s]+"
+placeholder = "GLM Coding Plan API key"
+
+[[commands]]
+kind = "zcode.add"
+title = "Add a GLM Coding Plan key"
+slash = "add"
+form = "key"
+summary = "Seal a Z.ai GLM Coding Plan key in the vault for this machine's agents"
+
+[commands.params]
+type = "object"
+additionalProperties = false
 
 [client]
 binaries = ["zcode"]
@@ -13,14 +36,54 @@ home_env = "HOME"
 [client.install]
 from = "release"
 repo = "pointman-ai/pointman-zcode"
-asset = "zcode-{triple}.tar.gz"
+asset = "zcode-{platform}.tar.gz"
 
 [client.sign_in]
-how = "zcode login"
+how = "/zcode add"
+
+# Pinned upstream's zai-api template; account:* providers forbid access overrides.
+[client.key]
+secret = "zcode.key"
+file = ".zcode/v2/pointman-provider.json"
+env_file = "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE"
+path = "/config/providerConfigRules/providerRules/0/config/access/apiKey"
+
+[client.key.settings]
+schemaVersion = 1
+
+[client.key.settings.config]
+defaultModelSelection = { providerId = "pointman-zai-coding-plan", modelId = "GLM-5.3" }
+modelConfigRules = { providerModelRules = [], manualProviderModelRules = [] }
+
+[[client.key.settings.config.providerConfigRules.providerRules]]
+providerId = "pointman-zai-coding-plan"
+templateId = "zai-api"
+providerName = "Z.ai Coding Plan"
+enabled = true
+config = { group = "standard-personal", access = { type = "zhipu-coding-plan-api-key", apiKey = "" }, api = { type = "anthropic-messages", baseUrl = "https://api.z.ai/api/anthropic" } }
 
 [client.run]
 args = ["--prompt", "{prompt}", "--output-format", "stream-json", "--no-color", "{permissions}", "{session}"]
 resume = ["--resume", "{value}"]
+
+# Explicit values beat inherited state overrides and ancestor .env loading.
+[client.run.env]
+HOME = "{home}"
+USERPROFILE = "{home}"
+ZCODE_DATA_BASE_DIR = "{home}"
+ZCODE_STORAGE_DIR = "{home}/.zcode"
+ZCODE_SESSION_DB_PATH = "{home}/.zcode/cli/db/db.sqlite"
+# Upstream accepts both names; pin the alias too, regardless of env iteration order.
+ZCODE_SESSION_DB = "{home}/.zcode/cli/db/db.sqlite"
+ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = "{home}/.zcode/v2/provider_config.json"
+ZCODE_LOG_DIR = "{home}/.zcode/cli/log"
+# Empty overrides make the CLI materialize its bundled config under DATA_BASE_DIR.
+ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = ""
+ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE = ""
+# Force SEA tools into its verified cache below ZCODE_STORAGE_DIR.
+ZCODE_BFS_BINARY = ""
+ZCODE_RG_BINARY = ""
+ZCODE_UGREP_BINARY = ""
 
 [client.run.permissions]
 default = ["--mode", "build"]
