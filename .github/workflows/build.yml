@@ -50,9 +50,12 @@ jobs:
         run: python3 scripts/check-provider.py --upstream upstream
       # These are the first two commands from @zcode/cli's build:sea script.
       # Build every CLI workspace package: SEA also embeds official plugins/TUI.
+      # @zcode/shared has no build script: its dist/ only comes from tsc -b, and
+      # the SEA runtime collection requires dist/index.js (it sits outside apps/zcode-cli).
       - name: Build workspace dependencies and CLI
         working-directory: upstream
         run: |
+          pnpm exec tsc -b packages/shared
           pnpm exec turbo --skip-infer --cwd apps/zcode-cli run build --filter=!@zcode/cli --force
           pnpm --filter @zcode/cli build
       - name: Build native SEA
