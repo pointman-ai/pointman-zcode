@@ -100,4 +100,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" release/* --draft --title "ZCode $TAG" --notes "Source-built ZCode CLI. See the repository README for upstream provenance and platform limits."
+        run: |
+          # The release may already exist (published at the merge): attach to it
+          # rather than failing, whichever came first.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+          else
+            gh release create "$TAG" release/* --title "ZCode $TAG" --notes "Source-built ZCode CLI. See the repository README for upstream provenance and platform limits."
+          fi
