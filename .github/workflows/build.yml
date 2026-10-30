@@ -50,9 +50,14 @@ jobs:
         run: python3 scripts/check-provider.py --upstream upstream
       # These are the first two commands from @zcode/cli's build:sea script.
       # Build every CLI workspace package: SEA also embeds official plugins/TUI.
+      # The SEA runtime collection requires dist/index.js from the repository-root
+      # packages the CLI uses, which turbo's --cwd apps/zcode-cli never builds.
+      # @zcode/shared has no build script: its dist/ only comes from tsc -b.
       - name: Build workspace dependencies and CLI
         working-directory: upstream
         run: |
+          pnpm exec tsc -b packages/shared
+          pnpm --filter @zcode/model-option-map --filter @zcode/provider --filter @zcode/provider-node build
           pnpm exec turbo --skip-infer --cwd apps/zcode-cli run build --filter=!@zcode/cli --force
           pnpm --filter @zcode/cli build
       - name: Build native SEA
@@ -95,4 +100,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" release/* --draft --title "ZCode $TAG" --notes "Source-built ZCode CLI. See the repository README for upstream provenance and platform limits."
+        run: |
+          # The release may already exist (published at the merge): attach to it
+          # rather than failing, whichever came first.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+          else
+            gh release create "$TAG" release/* --title "ZCode $TAG" --notes "Source-built ZCode CLI. See the repository README for upstream provenance and platform limits."
+          fi
