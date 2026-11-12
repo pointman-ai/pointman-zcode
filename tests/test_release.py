@@ -132,9 +132,13 @@ class Release(unittest.TestCase):
         # falls back to the bundled config only with `??`, so "" reaches the config source as a path
         # and fails with "ZCode Built-in bundledFilePath ...". Unset, the CLI materializes the bundled
         # config and sets both built-in paths before it loads any ancestor .env (override: false).
-        env = tomllib.loads((ROOT / "extension.toml").read_text())["client"]["run"]["env"]
+        # Leaving them unset is not enough: a nonempty inherited ZCODE_BUILTIN_PROVIDER_CONFIG_FILE
+        # with our explicit personal path takes the early return and skips materialization under
+        # the agent's home. The node removes every name in client.api_keys before a run.
+        client = tomllib.loads((ROOT / "extension.toml").read_text())["client"]
         for key in ["ZCODE_BUILTIN_PROVIDER_CONFIG_FILE", "ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE"]:
-            self.assertNotIn(key, env)
+            self.assertNotIn(key, client["run"]["env"])
+            self.assertIn(key, client["api_keys"])
 
     def test_manifest_keeps_resume_mcp_and_home_contract(self):
         manifest = tomllib.loads((ROOT / "extension.toml").read_text())

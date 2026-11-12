@@ -32,6 +32,9 @@ additionalProperties = false
 binaries = ["zcode"]
 protocol = "zcode-stream"
 home_env = "HOME"
+# Not keys, but env names a run never takes from the node: an inherited built-in provider
+# path would skip the config the CLI materializes under the agent's own home (see README).
+api_keys = ["ZCODE_BUILTIN_PROVIDER_CONFIG_FILE", "ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE"]
 
 [client.install]
 from = "release"

@@ -173,7 +173,11 @@ These explicit settings must overwrite inherited environment values before
 launch. Prompt runs load the first ancestor `.env` with `override:false`, so
 removing inherited keys alone is insufficient: that file could restore them.
 The built-in provider keys are safe from it: the CLI sets them before any
-`.env` is read.
+`.env` is read. They are safe from the node's own environment too: both are
+listed in `client.api_keys`, the names the node removes before every run. An
+inherited nonempty `ZCODE_BUILTIN_PROVIDER_CONFIG_FILE` would otherwise, with
+the explicit personal path, take the CLI's early return and skip the
+materialization under the agent's home.
 The offline contract checks exact source layouts and placeholder expansion for
 two agent homes against hostile inherited values. Actual node integration still
 needs tests with ancestor `.env`, two agents, provider setup and session resume.
