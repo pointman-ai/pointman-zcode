@@ -1,7 +1,7 @@
 [extension]
 id = "zcode"
 name = "Z.ai ZCode"
-version = "0.1.1"
+version = "0.1.2"
 node = ">=0.4.2"
 publisher = "aurelio"
 summary = "Z.ai's coding agent, built from its public source."
@@ -77,9 +77,9 @@ ZCODE_SESSION_DB_PATH = "{home}/.zcode/cli/db/db.sqlite"
 ZCODE_SESSION_DB = "{home}/.zcode/cli/db/db.sqlite"
 ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = "{home}/.zcode/v2/provider_config.json"
 ZCODE_LOG_DIR = "{home}/.zcode/cli/log"
-# Empty overrides make the CLI materialize its bundled config under DATA_BASE_DIR.
-ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = ""
-ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE = ""
+# The two ZCODE_BUILTIN_PROVIDER_* paths stay unset: the CLI then materializes its bundled
+# config under ZCODE_DATA_BASE_DIR and sets both itself, before any .env is read. An empty
+# value is not "unset" to it (`explicit ?? bundled`) and stops every run at startup.
 # Force SEA tools into its verified cache below ZCODE_STORAGE_DIR.
 ZCODE_BFS_BINARY = ""
 ZCODE_RG_BINARY = ""
