@@ -156,17 +156,28 @@ only one lets a hostile inherited alias win according to environment iteration
 order. Storage and logger defaults were verified in contracts/src/config/index.ts
 and adapters/src/logging/index.ts. Storage is `.zcode`, not `.zcode/cli`.
 
-The two built-in provider override keys are set to empty strings. The CLI's
-`prepareCliProviderRuntimeEnv` treats blank overrides as absent and materializes
-its embedded provider config under the isolated data base directory. Setting
-only the personal path is supported by this CLI preparation step; its later
-provider runtime receives the completed pair. Do not point the built-in override
-at an invented empty file. The BFS, ripgrep and ugrep override keys are also
-blanked so the SEA verifies and extracts those binaries into its isolated cache.
+The two built-in provider keys, `ZCODE_BUILTIN_PROVIDER_CONFIG_FILE` and
+`ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE`, are not set. The CLI's
+`prepareCliProviderRuntimeEnv` then materializes its embedded provider config
+under the isolated data base directory and sets both keys itself. It must not
+receive an empty value: it falls back to the embedded config with `??`, so an
+empty string is taken as the path and every run stops with
+`ZCode Built-in bundledFilePath 不能为空`. Setting only the personal path is
+supported by this CLI preparation step; its later provider runtime receives the
+completed pair. Do not point the built-in override at an invented empty file.
+The BFS, ripgrep and ugrep override keys are blanked so the SEA verifies and
+extracts those binaries into its isolated cache; those are read with `||`, so
+an empty value means unset.
 
 These explicit settings must overwrite inherited environment values before
 launch. Prompt runs load the first ancestor `.env` with `override:false`, so
 removing inherited keys alone is insufficient: that file could restore them.
+The built-in provider keys are safe from it: the CLI sets them before any
+`.env` is read. They are safe from the node's own environment too: both are
+listed in `client.api_keys`, the names the node removes before every run. An
+inherited nonempty `ZCODE_BUILTIN_PROVIDER_CONFIG_FILE` would otherwise, with
+the explicit personal path, take the CLI's early return and skip the
+materialization under the agent's home.
 The offline contract checks exact source layouts and placeholder expansion for
 two agent homes against hostile inherited values. Actual node integration still
 needs tests with ancestor `.env`, two agents, provider setup and session resume.

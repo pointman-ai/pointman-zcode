@@ -115,8 +115,6 @@ class Release(unittest.TestCase):
             "ZCODE_SESSION_DB": "{home}/.zcode/cli/db/db.sqlite",
             "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE": "{home}/.zcode/v2/provider_config.json",
             "ZCODE_LOG_DIR": "{home}/.zcode/cli/log",
-            "ZCODE_BUILTIN_PROVIDER_CONFIG_FILE": "",
-            "ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE": "",
             "ZCODE_BFS_BINARY": "", "ZCODE_RG_BINARY": "", "ZCODE_UGREP_BINARY": "",
         })
         # Contract fixture: apply the node's documented replacement/overwrite semantics
@@ -128,6 +126,19 @@ class Release(unittest.TestCase):
             for key, value in inherited.items():
                 self.assertTrue(value == "" or value == home or value.startswith(home + "/"), key)
             self.assertEqual(inherited["ZCODE_SESSION_DB"], inherited["ZCODE_SESSION_DB_PATH"])
+
+    def test_builtin_provider_paths_are_left_to_the_cli(self):
+        # prepareCliProviderRuntimeEnv reads ZCODE_BUILTIN_PROVIDER_CONFIG_FILE with `?.trim()` and
+        # falls back to the bundled config only with `??`, so "" reaches the config source as a path
+        # and fails with "ZCode Built-in bundledFilePath ...". Unset, the CLI materializes the bundled
+        # config and sets both built-in paths before it loads any ancestor .env (override: false).
+        # Leaving them unset is not enough: a nonempty inherited ZCODE_BUILTIN_PROVIDER_CONFIG_FILE
+        # with our explicit personal path takes the early return and skips materialization under
+        # the agent's home. The node removes every name in client.api_keys before a run.
+        client = tomllib.loads((ROOT / "extension.toml").read_text())["client"]
+        for key in ["ZCODE_BUILTIN_PROVIDER_CONFIG_FILE", "ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE"]:
+            self.assertNotIn(key, client["run"]["env"])
+            self.assertIn(key, client["api_keys"])
 
     def test_manifest_keeps_resume_mcp_and_home_contract(self):
         manifest = tomllib.loads((ROOT / "extension.toml").read_text())
