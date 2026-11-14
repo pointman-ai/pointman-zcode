@@ -88,10 +88,10 @@ upstream's responsibility; headless browser use is not enabled by this manifest.
 
 Outputs come from `apps/zcode-cli/packages/cli/dist/zcode-darwin-arm64` and
 `apps/zcode-cli/packages/cli/dist/zcode-linux-x64`, as resolved by upstream's
-`build-sea.mjs` and `sea-targets.mjs`. CI uploads both archives, checksums and
-upstream license notices as artifacts. A `v*` tag additionally creates a **draft**
-GitHub release. Publish it only after inspecting both builds. Pointman's installer
-uses GitHub's asset digest; sidecar checksums are supplementary.
+`build-sea.mjs` and `sea-targets.mjs`. On a `v*` tag, each build attaches its
+archive, checksums and upstream license notices to the tag's GitHub release
+(creating it when the merge hasn't); a manual run builds and checks them only.
+Pointman's installer uses GitHub's asset digest; sidecar checksums are supplementary.
 
 The archives contain one executable with the archive's basename, plus
 `licenses/zcode/LICENSE`, `licenses/zcode/NOTICE.md`, and
