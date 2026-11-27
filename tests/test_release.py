@@ -75,11 +75,11 @@ class Release(unittest.TestCase):
         self.assertTrue(re.fullmatch(credential["value"], "offline.fake-key"))
         for invalid in ["", " ", "line\nbreak"]:
             self.assertIsNone(re.fullmatch(credential["value"], invalid))
-        key = manifest["client"]["key"]
+        key = manifest["harness"]["key"]
         self.assertEqual(key["secret"], credential["item"])
         self.assertEqual(key["file"], ".zcode/v2/pointman-provider.json")
         self.assertEqual(key["env_file"], "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE")
-        self.assertNotEqual("{home}/" + key["file"], manifest["client"]["run"]["env"][key["env_file"]])
+        self.assertNotEqual("{home}/" + key["file"], manifest["harness"]["run"]["env"][key["env_file"]])
         settings = key["settings"]
         self.assertEqual(settings["schemaVersion"], 1)
         provider, = settings["config"]["providerConfigRules"]["providerRules"]
@@ -107,7 +107,7 @@ class Release(unittest.TestCase):
         self.assertEqual(pin.source_pin(ROOT / "upstream.json"), "3c5b227649371507ddc4eb46ac5133afe6db1cab")
 
     def test_environment_isolates_paths_and_covers_database_alias(self):
-        env = tomllib.loads((ROOT / "extension.toml").read_text())["client"]["run"]["env"]
+        env = tomllib.loads((ROOT / "extension.toml").read_text())["harness"]["run"]["env"]
         self.assertEqual(env, {
             "HOME": "{home}", "USERPROFILE": "{home}", "ZCODE_DATA_BASE_DIR": "{home}",
             "ZCODE_STORAGE_DIR": "{home}/.zcode",
@@ -134,25 +134,25 @@ class Release(unittest.TestCase):
         # config and sets both built-in paths before it loads any ancestor .env (override: false).
         # Leaving them unset is not enough: a nonempty inherited ZCODE_BUILTIN_PROVIDER_CONFIG_FILE
         # with our explicit personal path takes the early return and skips materialization under
-        # the agent's home. The node removes every name in client.api_keys before a run.
-        client = tomllib.loads((ROOT / "extension.toml").read_text())["client"]
+        # the agent's home. The node removes every name in harness.api_keys before a run.
+        harness = tomllib.loads((ROOT / "extension.toml").read_text())["harness"]
         for key in ["ZCODE_BUILTIN_PROVIDER_CONFIG_FILE", "ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE"]:
-            self.assertNotIn(key, client["run"]["env"])
-            self.assertIn(key, client["api_keys"])
+            self.assertNotIn(key, harness["run"]["env"])
+            self.assertIn(key, harness["api_keys"])
 
     def test_manifest_keeps_resume_mcp_and_home_contract(self):
         manifest = tomllib.loads((ROOT / "extension.toml").read_text())
-        self.assertEqual(manifest["extension"]["node"], ">=0.4.2")
-        client = manifest["client"]
-        self.assertEqual(client["protocol"], "zcode-stream")
-        self.assertEqual(client["home_env"], "HOME")
-        self.assertEqual(client["install"]["repo"], "pointman-ai/pointman-zcode")
-        self.assertEqual(client["install"]["asset"], "zcode-{platform}.tar.gz")
-        self.assertEqual(client["run"]["resume"], ["--resume", "{value}"])
-        self.assertEqual(client["mcp"]["settings"], {"features": {"mcp": True}})
-        self.assertEqual(client["mcp"]["key"], "mcp.servers")
-        self.assertEqual(client["instructions"]["file"], ".zcode/AGENTS.md")
-        self.assertNotIn("model", client["run"])
+        self.assertEqual(manifest["extension"]["node"], ">=0.6,<1")
+        harness = manifest["harness"]
+        self.assertEqual(harness["protocol"], "zcode-stream")
+        self.assertEqual(harness["home_env"], "HOME")
+        self.assertEqual(harness["install"]["repo"], "pointman-ai/pointman-zcode")
+        self.assertEqual(harness["install"]["asset"], "zcode-{platform}.tar.gz")
+        self.assertEqual(harness["run"]["resume"], ["--resume", "{value}"])
+        self.assertEqual(harness["mcp"]["settings"], {"features": {"mcp": True}})
+        self.assertEqual(harness["mcp"]["key"], "mcp.servers")
+        self.assertEqual(harness["instructions"]["file"], ".zcode/AGENTS.md")
+        self.assertNotIn("model", harness["run"])
 
 
 if __name__ == "__main__":
