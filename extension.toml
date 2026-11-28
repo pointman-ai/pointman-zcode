@@ -1,8 +1,8 @@
 [extension]
 id = "zcode"
 name = "Z.ai ZCode"
-version = "0.1.2"
-node = ">=0.4.2"
+version = "0.2.0"
+node = ">=0.6,<1"
 publisher = "aurelio"
 summary = "Z.ai's coding agent, built from its public source."
 
@@ -28,7 +28,7 @@ summary = "Seal a Z.ai GLM Coding Plan key in the vault for this machine's agent
 type = "object"
 additionalProperties = false
 
-[client]
+[harness]
 binaries = ["zcode"]
 protocol = "zcode-stream"
 home_env = "HOME"
@@ -36,41 +36,41 @@ home_env = "HOME"
 # path would skip the config the CLI materializes under the agent's own home (see README).
 api_keys = ["ZCODE_BUILTIN_PROVIDER_CONFIG_FILE", "ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE"]
 
-[client.install]
+[harness.install]
 from = "release"
 repo = "pointman-ai/pointman-zcode"
 asset = "zcode-{platform}.tar.gz"
 
-[client.sign_in]
+[harness.sign_in]
 how = "/zcode add"
 
 # Pinned upstream's zai-api template; account:* providers forbid access overrides.
-[client.key]
+[harness.key]
 secret = "zcode.key"
 file = ".zcode/v2/pointman-provider.json"
 env_file = "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE"
 path = "/config/providerConfigRules/providerRules/0/config/access/apiKey"
 
-[client.key.settings]
+[harness.key.settings]
 schemaVersion = 1
 
-[client.key.settings.config]
+[harness.key.settings.config]
 defaultModelSelection = { providerId = "pointman-zai-coding-plan", modelId = "GLM-5.3" }
 modelConfigRules = { providerModelRules = [], manualProviderModelRules = [] }
 
-[[client.key.settings.config.providerConfigRules.providerRules]]
+[[harness.key.settings.config.providerConfigRules.providerRules]]
 providerId = "pointman-zai-coding-plan"
 templateId = "zai-api"
 providerName = "Z.ai Coding Plan"
 enabled = true
 config = { group = "standard-personal", access = { type = "zhipu-coding-plan-api-key", apiKey = "" }, api = { type = "anthropic-messages", baseUrl = "https://api.z.ai/api/anthropic" } }
 
-[client.run]
+[harness.run]
 args = ["--prompt", "{prompt}", "--output-format", "stream-json", "--no-color", "{permissions}", "{session}"]
 resume = ["--resume", "{value}"]
 
 # Explicit values beat inherited state overrides and ancestor .env loading.
-[client.run.env]
+[harness.run.env]
 HOME = "{home}"
 USERPROFILE = "{home}"
 ZCODE_DATA_BASE_DIR = "{home}"
@@ -88,18 +88,18 @@ ZCODE_BFS_BINARY = ""
 ZCODE_RG_BINARY = ""
 ZCODE_UGREP_BINARY = ""
 
-[client.run.permissions]
+[harness.run.permissions]
 default = ["--mode", "build"]
 plan = ["--mode", "plan"]
 auto = ["--mode", "yolo"]
 acceptEdits = ["--mode", "edit"]
 
-[client.mcp]
+[harness.mcp]
 via = "config-file"
 file = ".zcode/cli/config.json"
 key = "mcp.servers"
 settings = { features = { mcp = true } }
 
-[client.instructions]
+[harness.instructions]
 via = "file"
 file = ".zcode/AGENTS.md"

@@ -16,7 +16,7 @@ process receives the pasted value.
 
 Before each agent run, the node reads that vault item and writes a private
 provider file in the agent's isolated home at `.zcode/v2/pointman-provider.json`.
-It merges `client.key.settings`, then inserts the key at the JSON Pointer
+It merges `harness.key.settings`, then inserts the key at the JSON Pointer
 `/config/providerConfigRules/providerRules/0/config/access/apiKey`.
 Only a present vault key overrides `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` to this
 managed file. With no vault key, the node removes the managed file and uses the
@@ -51,7 +51,7 @@ Sources at the build pin:
 ### Alternative: isolated manual login
 
 Without a vault key, run `zcode login` with the same isolated HOME and explicit
-environment paths as that agent's `client.run.env`. Each agent needs its own
+environment paths as that agent's `harness.run.env`. Each agent needs its own
 login; signing in under your usual shell HOME does not configure an agent.
 Manual login writes `.zcode/v2/provider_config.json`; the node keeps this file
 when removing a managed vault-key file. To use manual login again, remove the
@@ -136,7 +136,7 @@ This requires Pointman's dotted MCP keys and settings merge support.
 
 ### Explicit run environment
 
-`client.run.env` pins HOME, USERPROFILE and ZCODE_DATA_BASE_DIR to `{home}`.
+`harness.run.env` pins HOME, USERPROFILE and ZCODE_DATA_BASE_DIR to `{home}`.
 The source layouts are pinned explicitly as well:
 
 | Environment key | Value |
@@ -174,7 +174,7 @@ launch. Prompt runs load the first ancestor `.env` with `override:false`, so
 removing inherited keys alone is insufficient: that file could restore them.
 The built-in provider keys are safe from it: the CLI sets them before any
 `.env` is read. They are safe from the node's own environment too: both are
-listed in `client.api_keys`, the names the node removes before every run. An
+listed in `harness.api_keys`, the names the node removes before every run. An
 inherited nonempty `ZCODE_BUILTIN_PROVIDER_CONFIG_FILE` would otherwise, with
 the explicit personal path, take the CLI's early return and skip the
 materialization under the agent's home.
@@ -231,7 +231,7 @@ Nix sources:
 
 ## Decoder contract
 
-The accompanying node change owns only `node/src/clientstream/zcode.rs`.
+The accompanying node change owns only its `zcode-stream` decoder.
 Events have a camelCase `sessionId`, `type`, and nested `payload`:
 
 | ZCode event | Pointman event |
@@ -260,7 +260,7 @@ only from structured error type/code, never arbitrary assistant/tool prose.
 Run `python3 -m unittest discover -s tests -v`. Decoder unit tests live inside the
 Rust decoder file and use upstream schema-shaped examples (not real-account
 captures). The standalone test harness extracts Event and Outcome from the
-parent's actual clientspec.rs without editing shared files.
+parent's actual harness spec without editing shared files.
 
 The offline suite checks the vault form, key pointer through its provider-rule
 array, explicit Coding Plan transport, separate manual config path, notices

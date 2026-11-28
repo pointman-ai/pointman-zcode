@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def check(upstream):
     upstream = Path(upstream).resolve()
     manifest = tomllib.loads((ROOT / "extension.toml").read_text())
-    key = manifest["client"]["key"]
+    key = manifest["harness"]["key"]
     settings = key["settings"]
     node = settings
     parts = [part.replace("~1", "/").replace("~0", "~") for part in key["path"].split("/")[1:]]
